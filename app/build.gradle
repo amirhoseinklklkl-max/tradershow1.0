@@ -1,0 +1,114 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+android {
+    namespace 'ir.amir.triedgame'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "ir.amir.triedgame"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        vectorDrawables {
+            useSupportLibrary true
+        }
+
+        // Myket in-app billing public key (used for local signature verification)
+        buildConfigField "String", "MYKET_PUBLIC_KEY", "\"MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCjH1DRPkQDy6n8kc8IrCwtOGyLoAndzM5IErB71gGYa+LS2pg5wvxxYQr1YUUT0frd34xPX/TkqD8K11WB9VGmWEa/4SnAhPvQA6To8Tgyi/Lwe3QkUSLDq4HmAtxEjz9SbzzEjUEjnXtL464kkGkB4kbVvF2N6yntN83wDYtVGQIDAQAB\""
+
+        // Adivery ad platform
+        buildConfigField "String", "ADIVERY_APP_ID", "\"d30a0494-3b55-4554-b530-78af7e7a94d9\""
+        buildConfigField "String", "ADIVERY_REWARDED_PLACEMENT_ID", "\"ee5add8b-ea31-4791-8214-08c93a10d976\""
+
+        // Required by the Myket billing client so it can bind to the Myket app's
+        // in-app-billing service on the user's device.
+        def marketApplicationId = "ir.mservices.market"
+        def marketBindAddress = "ir.mservices.market.InAppBillingService.BIND"
+        manifestPlaceholders = [marketApplicationId: "${marketApplicationId}",
+                marketBindAddress  : "${marketBindAddress}",
+                marketPermission   : "${marketApplicationId}.BILLING"]
+    }
+
+    signingConfigs {
+        // NOTE: for a Play/Myket-ready release build, replace this with your own
+        // keystore before publishing. Debug signing is used here so the project
+        // builds out of the box in Android Studio.
+        debug {}
+    }
+
+    signingConfigs {
+        release {
+            def ksPath = System.getenv("RELEASE_KEYSTORE_PATH")
+            if (ksPath) {
+                storeFile file(ksPath)
+                storePassword System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (System.getenv("RELEASE_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            debuggable true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    packaging {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.4'
+    implementation 'androidx.activity:activity-compose:1.9.1'
+
+    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.navigation:navigation-compose:2.7.7'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+
+    // Myket in-app billing (consumable wallet top-up packages)
+    implementation 'com.github.myketstore:myket-billing-client:1.6'
+
+    // Adivery ads SDK (rewarded video)
+    implementation 'com.adivery:sdk:4.9.0'
+    implementation 'com.google.android.gms:play-services-ads-identifier:18.0.1'
+
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+}
