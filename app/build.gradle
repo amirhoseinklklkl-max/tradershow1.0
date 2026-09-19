@@ -40,9 +40,6 @@ android {
         // keystore before publishing. Debug signing is used here so the project
         // builds out of the box in Android Studio.
         debug {}
-    }
-
-    signingConfigs {
         release {
             def ksPath = System.getenv("RELEASE_KEYSTORE_PATH")
             if (ksPath) {
