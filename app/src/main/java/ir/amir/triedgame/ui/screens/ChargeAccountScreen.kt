@@ -80,7 +80,7 @@ fun ChargeAccountScreen(
         }
 
         Spacer(Modifier.height(20.dp))
-        Text("خرید بسته‌ی شارژ (مایکت)", style = MaterialTheme.typography.titleMedium)
+        Text("خرید بسته‌ی شارژ", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(10.dp))
 
         BillingManager.SKUS.forEach { sku ->

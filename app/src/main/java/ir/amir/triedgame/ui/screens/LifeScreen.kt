@@ -65,7 +65,13 @@ private val lifeItems = listOf(
     LifeItem("موتورسیکلت", 60_000_000.0, 200, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی"),
     LifeItem("ماشین اقتصادی", 200_000_000.0, 500, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی زیاد"),
     LifeItem("ماشین لوکس", 1_500_000_000.0, 2000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی خیلی زیاد"),
-    LifeItem("آپارتمان کوچک", 500_000_000.0, 1000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی زیاد")
+    LifeItem("آپارتمان کوچک", 500_000_000.0, 1000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی زیاد"),
+    LifeItem("آب‌معدنی", 10_000.0, 2, true, LifeItemGroup.FOOD, { it.copy(hunger = it.hunger + 5, energy = it.energy + 5) }, "گرسنگی +۵، انرژی +۵"),
+    LifeItem("اسموتی پروتئینی", 70_000.0, 9, true, LifeItemGroup.FOOD, { it.copy(hunger = it.hunger + 25, health = it.health + 5) }, "گرسنگی +۲۵، سلامتی +۵"),
+    LifeItem("ماساژ", 180_000.0, 15, false, LifeItemGroup.HEALTH, { it.copy(energy = it.energy + 20, health = it.health + 10) }, "انرژی +۲۰، سلامتی +۱۰"),
+    LifeItem("چکاپ کامل پزشکی", 600_000.0, 35, false, LifeItemGroup.HEALTH, { it.copy(health = 100) }, "سلامتی پر"),
+    LifeItem("ساعت هوشمند", 90_000_000.0, 300, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی"),
+    LifeItem("قایق تفریحی", 3_000_000_000.0, 5000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی بسیار زیاد")
 )
 
 @Composable
@@ -110,6 +116,7 @@ fun LifeScreen(viewModel: GameViewModel) {
             columns = GridCells.Fixed(4),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 16.dp),
             modifier = Modifier.fillMaxSize()
         ) {
             items(lifeItems) { item ->
@@ -172,7 +179,7 @@ private fun LifeEventCard(
 private fun MiniStatChip(label: String, value: Int, modifier: Modifier = Modifier) {
     val color = statColor(value)
     Surface(color = TsSurfaceElevated, shape = RoundedCornerShape(10.dp), modifier = modifier) {
-        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Text(label, style = MaterialTheme.typography.labelMedium)
                 Text("$value%", style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.Bold)

@@ -107,6 +107,13 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
     var newAchievementEvent by mutableStateOf<Achievement?>(null)
         private set
 
+    // --- One-time "rate us 5 stars on Myket" challenge ---
+    var reviewChallengeClaimed by mutableStateOf(false)
+        private set
+    var reviewChallengeReadyToClaim by mutableStateOf(false)
+        private set
+    private var reviewLinkOpenedAt = 0L
+
     private var tickerStarted = false
     private var challengeRecord = ChallengeRecord()
     private var achievementStats = AchievementStats()
@@ -122,13 +129,16 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
     private var preciseEnergy = 100.0
 
     companion object {
-        private const val TICK_MS = 3000L
+        private const val TICK_MS = 1000L
         private const val ENERGY_FULL_DRAIN_MS = 120L * 60 * 1000       // 120 minutes of active play
         private const val HUNGER_FULL_DRAIN_MS = 150L * 60 * 1000       // 150 minutes of active play
         private const val HEALTH_FULL_DRAIN_MS = 240L * 60 * 1000       // 240 minutes (4h) of active play
         private const val STARVING_HEALTH_DRAIN_MS = 60L * 60 * 1000    // extra loss while hunger is at 0
-        private const val NET_WORTH_SAMPLE_EVERY_TICKS = 4              // sample every ~12s
+        private const val NET_WORTH_SAMPLE_EVERY_TICKS = 12              // sample every ~12s (ticks are now 1s apart)
         private const val LOW_STAT_TRADE_BLOCK_THRESHOLD = 20           // below this, trading is blocked
+        private const val REVIEW_CHALLENGE_REWARD_TOMAN = 60_000.0
+        private const val MIN_REVIEW_WAIT_MS = 15_000L                  // heuristic: must be away at least this long
+        const val MYKET_REVIEW_URL = "https://myket.ir/app/ir.amir.triedgame"
     }
 
     fun loadOrCreateProfile(existing: UserProfile?) {
@@ -146,6 +156,8 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
             loadChallenges()
             refreshAchievementUiState()
             checkDailyLifeEvent()
+            reviewChallengeClaimed = repository.loadReviewChallengeClaimed()
+            reviewLinkOpenedAt = repository.loadReviewLinkOpenedAt()
             resolveOfflineGapAndStartTicking()
         }
     }
@@ -260,6 +272,7 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         repository.saveLastSeen(now)
         applyLifeDrain()
         checkPositionTriggers()
+        checkLifeEventEligibility()
         refreshChallengeUiState()
 
         netWorthTickCounter++
@@ -493,11 +506,9 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         return true
     }
 
-    /** Rolls (at most once per real day) a random life event -- job offer,
-     * unexpected bill, lucky bonus, etc. Bonuses are credited immediately
-     * (a nice surprise); expenses are NOT auto-deducted -- they show as a
-     * pending "problem" the user resolves with a button in زندگی من, which
-     * is when the money actually leaves the wallet. */
+    /** Runs once per real day: records the day for the "played N different
+     * days" achievement (always), then separately decides whether to roll a
+     * random life event for زندگی من (gated -- see [maybeRollLifeEvent]). */
     private fun checkDailyLifeEvent() {
         val today = todayKey()
         if (repository.loadLastLifeEventDay() == today) return
@@ -507,12 +518,40 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         repository.saveAchievementStats(achievementStats)
         refreshAchievementUiState()
 
+        maybeRollLifeEvent()
+    }
+
+    /** Random "life events" (job offer, unexpected bill, etc.) only start
+     * appearing once the user's wallet has reached $5 for the first time
+     * ever (so a brand-new player never gets hit with a bill they can't
+     * possibly pay), and even then only on some days of the week -- not
+     * every single day -- so they don't feel relentless. Bonuses are
+     * credited immediately; expenses wait for the user to resolve them with
+     * a button in زندگی من (see [resolveLifeEventExpense]). */
+    private fun maybeRollLifeEvent() {
+        if (!repository.loadLifeEventEligible()) return
+        val dayOfWeek = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
+        val eventDays = setOf(
+            java.util.Calendar.SUNDAY, java.util.Calendar.TUESDAY,
+            java.util.Calendar.THURSDAY, java.util.Calendar.SATURDAY
+        )
+        if (dayOfWeek !in eventDays) return
+
         val event = LifeEventCatalog.random()
         if (event.kind == LifeEventKind.BONUS) {
             wallet = wallet.addToman(event.amountToman)
             repository.saveWallet(wallet)
         }
         pendingLifeEvent = event
+    }
+
+    /** Checked on every active tick: the first moment the wallet's USD
+     * balance reaches $5, life events become permanently eligible to occur
+     * from then on -- even if the balance later drops back below $5. */
+    private fun checkLifeEventEligibility() {
+        if (!repository.loadLifeEventEligible() && wallet.usdBalance >= 5.0) {
+            repository.saveLifeEventEligible(true)
+        }
     }
 
     /** Called when the user taps "پرداخت و رفع مشکل" on a pending expense event. */
@@ -522,6 +561,39 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         wallet = wallet.spendToman(event.amountToman) ?: wallet.copy(tomanBalance = 0.0)
         repository.saveWallet(wallet)
         pendingLifeEvent = null
+    }
+
+    // --- One-time "rate us 5 stars on Myket" challenge ---
+    // NOTE: there is no way to verify from inside the app that a review was
+    // actually submitted -- Myket exposes no such API to third-party apps.
+    // This is a best-effort heuristic: the reward only becomes claimable
+    // after the user has left the app (presumably to the Myket page) and
+    // came back at least MIN_REVIEW_WAIT_MS later, which a simple "tap and
+    // immediately return" can't satisfy. It discourages casual abuse without
+    // claiming to be foolproof.
+
+    /** Call when the "انجام دادن" button is tapped, right before opening the Myket link. */
+    fun markReviewLinkOpened() {
+        if (reviewChallengeClaimed) return
+        reviewLinkOpenedAt = System.currentTimeMillis()
+        repository.saveReviewLinkOpenedAt(reviewLinkOpenedAt)
+    }
+
+    /** Call from the Activity's onResume. */
+    fun onAppResumed() {
+        if (reviewChallengeClaimed || reviewLinkOpenedAt <= 0L) return
+        if (System.currentTimeMillis() - reviewLinkOpenedAt >= MIN_REVIEW_WAIT_MS) {
+            reviewChallengeReadyToClaim = true
+        }
+    }
+
+    fun claimReviewChallenge() {
+        if (reviewChallengeClaimed || !reviewChallengeReadyToClaim) return
+        wallet = wallet.addToman(REVIEW_CHALLENGE_REWARD_TOMAN)
+        repository.saveWallet(wallet)
+        reviewChallengeClaimed = true
+        repository.saveReviewChallengeClaimed(true)
+        gainXp(50)
     }
 
     // --- Level / XP ---

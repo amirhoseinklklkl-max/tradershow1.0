@@ -4,11 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.item
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,6 +20,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ir.amir.triedgame.ui.AchievementUiState
@@ -48,12 +52,44 @@ fun ChallengesScreen(viewModel: GameViewModel) {
 
         when (tab) {
             ChallengesTab.DAILY -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item { ReviewChallengeCard(viewModel) }
                 items(viewModel.challenges) { state ->
                     ChallengeCard(state, onClaim = { viewModel.claimChallenge(state.challenge.id) })
                 }
             }
             ChallengesTab.ACHIEVEMENTS -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(viewModel.achievements) { state -> AchievementCard(state) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewChallengeCard(viewModel: GameViewModel) {
+    val uriHandler = LocalUriHandler.current
+    Surface(
+        color = if (viewModel.reviewChallengeClaimed) TsSurfaceElevated else Color(0xFF4A3B12),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Star, contentDescription = null, tint = TsGold)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text("به بازی توی مایکت ۵ ستاره بده", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                Text("یک‌بار، ۶۰,۰۰۰ تومان پاداش", style = MaterialTheme.typography.bodySmall)
+            }
+            when {
+                viewModel.reviewChallengeClaimed -> Text("دریافت شد ✓", color = TsGreen, style = MaterialTheme.typography.labelSmall)
+                viewModel.reviewChallengeReadyToClaim -> Button(onClick = { viewModel.claimReviewChallenge() }) {
+                    Text("دریافت جایزه", style = MaterialTheme.typography.labelSmall)
+                }
+                else -> Button(onClick = {
+                    viewModel.markReviewLinkOpened()
+                    uriHandler.openUri(GameViewModel.MYKET_REVIEW_URL)
+                }) {
+                    Text("انجام دادن", style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }

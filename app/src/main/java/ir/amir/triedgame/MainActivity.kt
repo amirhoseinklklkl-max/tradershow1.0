@@ -77,6 +77,11 @@ class MainActivity : ComponentActivity() {
         if (hasFocus) hideSystemBars()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::repository.isInitialized) viewModel.onAppResumed()
+    }
+
     override fun onDestroy() {
         billingManager?.dispose()
         super.onDestroy()

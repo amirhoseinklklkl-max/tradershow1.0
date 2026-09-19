@@ -95,7 +95,7 @@ fun TradingScreen(viewModel: GameViewModel) {
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(formatPrice(price), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    NewsTicker(assetDisplayName = viewModel.selectedAsset.displayName)
+                    NewsTicker(assetDisplayName = viewModel.selectedAsset.displayName, candles = viewModel.candles)
                 }
                 Row {
                     Timeframe.entries.forEach { tf ->
@@ -158,6 +158,21 @@ fun TradingScreen(viewModel: GameViewModel) {
                     textStyle = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.width(100.dp).height(52.dp)
                 )
+                Spacer(Modifier.width(5.dp))
+                Surface(
+                    color = TsSurfaceElevated,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.clickable {
+                        customAmountText = String.format(Locale.US, "%.2f", viewModel.wallet.usdBalance)
+                    }
+                ) {
+                    Text(
+                        "تمام موجودی",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TsAccent
+                    )
+                }
                 Spacer(Modifier.weight(1f))
                 Text("موجودی: ${String.format(Locale.US, "%.2f", viewModel.wallet.usdBalance)}$", style = MaterialTheme.typography.bodySmall)
             }
@@ -261,7 +276,7 @@ fun TradingScreen(viewModel: GameViewModel) {
             Text("پوزیشن‌های باز", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(viewModel.positions) { position ->
+                items(viewModel.positions, key = { it.id }) { position ->
                     PositionRow(position, viewModel)
                 }
             }

@@ -311,6 +311,25 @@ class GameRepository(context: Context) {
         prefs.edit().putString(KEY_LIFE_EVENT_DAY, dayKey).apply()
     }
 
+    /** True forever once the wallet has reached $5 for the first time -- see
+     * [ir.amir.triedgame.ui.GameViewModel.checkLifeEventEligibility]. */
+    fun loadLifeEventEligible(): Boolean = prefs.getBoolean(KEY_LIFE_EVENT_ELIGIBLE, false)
+    fun saveLifeEventEligible(eligible: Boolean) {
+        prefs.edit().putBoolean(KEY_LIFE_EVENT_ELIGIBLE, eligible).apply()
+    }
+
+    // --- One-time "rate us on Myket" challenge ---
+
+    fun loadReviewChallengeClaimed(): Boolean = prefs.getBoolean(KEY_REVIEW_CLAIMED, false)
+    fun saveReviewChallengeClaimed(claimed: Boolean) {
+        prefs.edit().putBoolean(KEY_REVIEW_CLAIMED, claimed).apply()
+    }
+
+    fun loadReviewLinkOpenedAt(): Long = prefs.getLong(KEY_REVIEW_OPENED_AT, 0L)
+    fun saveReviewLinkOpenedAt(timestampMillis: Long) {
+        prefs.edit().putLong(KEY_REVIEW_OPENED_AT, timestampMillis).apply()
+    }
+
     companion object {
         private const val MAX_HISTORY = 200
         private const val MAX_NET_WORTH_POINTS = 200
@@ -350,5 +369,8 @@ class GameRepository(context: Context) {
         private const val KEY_ACH_UNLOCKED = "ach_unlocked"
         private const val KEY_NET_WORTH_HISTORY = "net_worth_history"
         private const val KEY_LIFE_EVENT_DAY = "life_event_day"
+        private const val KEY_LIFE_EVENT_ELIGIBLE = "life_event_eligible"
+        private const val KEY_REVIEW_CLAIMED = "review_challenge_claimed"
+        private const val KEY_REVIEW_OPENED_AT = "review_link_opened_at"
     }
 }

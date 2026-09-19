@@ -77,7 +77,10 @@ fun CandlestickChart(
                             val candleWidthPx = (size.width / visibleCount.toFloat()).coerceAtLeast(1f)
                             val deltaCandles = pan.x / candleWidthPx
                             val maxScroll = (candles.size - visibleCount).coerceAtLeast(0).toFloat()
-                            scrollFromEnd = (scrollFromEnd - deltaCandles).coerceIn(0f, maxScroll)
+                            // Dragging right reveals older candles (content follows the
+                            // finger, like a normal scroll) -- dragging left goes back
+                            // toward the latest candle.
+                            scrollFromEnd = (scrollFromEnd + deltaCandles).coerceIn(0f, maxScroll)
                             event.changes.forEach { it.consume() }
                         }
                         // else: leave changes unconsumed so the parent scroll container handles them.
