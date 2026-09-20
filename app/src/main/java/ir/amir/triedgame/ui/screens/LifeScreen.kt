@@ -3,7 +3,9 @@ package ir.amir.triedgame.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.item
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -95,14 +97,6 @@ fun LifeScreen(viewModel: GameViewModel) {
             MiniStatChip("انرژی", stats.energy, Modifier.weight(1f))
         }
 
-        viewModel.pendingLifeEvent?.let { event ->
-            Spacer(Modifier.height(8.dp))
-            LifeEventCard(
-                event,
-                onResolveExpense = { viewModel.resolveLifeEventExpense() },
-                onDismissBonus = { viewModel.dismissLifeEvent() }
-            )
-        }
         message?.let {
             Spacer(Modifier.height(6.dp))
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -119,6 +113,22 @@ fun LifeScreen(viewModel: GameViewModel) {
             contentPadding = PaddingValues(bottom = 16.dp),
             modifier = Modifier.fillMaxSize()
         ) {
+            // The pending life event (if any) is a full-width row at the top
+            // of the shop grid, so it scrolls together with the items
+            // instead of eating fixed space above them.
+            viewModel.pendingLifeEvent?.let { event ->
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    LifeEventCard(
+                        event,
+                        onResolveExpense = {
+                            val ok = viewModel.resolveLifeEventExpense()
+                            message = if (ok) null else "موجودی تومانی کافی نیست"
+                        },
+                        onDismissBonus = { viewModel.dismissLifeEvent() }
+                    )
+                }
+            }
+
             items(lifeItems) { item ->
                 Surface(color = TsSurfaceElevated, shape = RoundedCornerShape(14.dp), shadowElevation = 2.dp) {
                     Column(Modifier.padding(10.dp)) {

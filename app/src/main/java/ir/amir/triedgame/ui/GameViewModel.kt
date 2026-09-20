@@ -151,7 +151,7 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         // grants starting USD for testing. Not surfaced anywhere in the UI,
         // strings, or docs -- keep it that way.
         private const val TEST_UNLOCK_CODE = "mnbvchxz7890"
-        private const val TEST_UNLOCK_USD = 1000.0
+        private const val TEST_UNLOCK_USD = 6000.0
     }
 
     /** Not surfaced anywhere in the UI/strings -- lets the test account (see
@@ -602,12 +602,18 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
     }
 
     /** Called when the user taps "پرداخت و رفع مشکل" on a pending expense event. */
-    fun resolveLifeEventExpense() {
-        val event = pendingLifeEvent ?: return
-        if (event.kind != LifeEventKind.EXPENSE) return
-        wallet = wallet.spendToman(event.amountToman) ?: wallet.copy(tomanBalance = 0.0)
+    /** Called when the user taps "پرداخت و رفع مشکل" on a pending expense
+     * event. Returns false (and leaves the event pending) if the wallet
+     * doesn't actually have enough Toman -- the problem must not clear
+     * without the money really being deducted. */
+    fun resolveLifeEventExpense(): Boolean {
+        val event = pendingLifeEvent ?: return false
+        if (event.kind != LifeEventKind.EXPENSE) return false
+        val newWallet = wallet.spendToman(event.amountToman) ?: return false
+        wallet = newWallet
         repository.saveWallet(wallet)
         pendingLifeEvent = null
+        return true
     }
 
     // --- One-time "rate us 5 stars on Myket" challenge ---
