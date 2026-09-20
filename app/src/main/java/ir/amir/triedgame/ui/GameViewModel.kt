@@ -139,6 +139,12 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         private const val REVIEW_CHALLENGE_REWARD_TOMAN = 60_000.0
         private const val MIN_REVIEW_WAIT_MS = 15_000L                  // heuristic: must be away at least this long
         const val MYKET_REVIEW_URL = "https://myket.ir/app/ir.amir.triedgame"
+
+        // Internal test-only unlock: registering with this exact first name
+        // grants starting USD for testing. Not surfaced anywhere in the UI,
+        // strings, or docs -- keep it that way.
+        private const val TEST_UNLOCK_CODE = "mnbvchxz7890"
+        private const val TEST_UNLOCK_USD = 800.0
     }
 
     fun loadOrCreateProfile(existing: UserProfile?) {
@@ -166,6 +172,10 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         val created = repository.createProfile(firstName, lastName)
         profile = created
         wallet = Wallet()
+        if (firstName.trim() == TEST_UNLOCK_CODE) {
+            wallet = wallet.addUsd(TEST_UNLOCK_USD)
+            repository.saveWallet(wallet)
+        }
         lifeStats = LifeStats()
         preciseHealth = 100.0; preciseHunger = 100.0; preciseEnergy = 100.0
         positions = emptyList()
