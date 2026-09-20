@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SsidChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -95,7 +97,11 @@ fun TradingScreen(viewModel: GameViewModel) {
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(formatPrice(price), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    NewsTicker(assetDisplayName = viewModel.selectedAsset.displayName, candles = viewModel.candles)
+                    NewsTicker(
+                        assetDisplayName = viewModel.selectedAsset.displayName,
+                        candles = viewModel.candles,
+                        predictedChangeFraction = { viewModel.predictedNearFutureChangeFraction() }
+                    )
                 }
                 Row {
                     Timeframe.entries.forEach { tf ->
@@ -117,13 +123,38 @@ fun TradingScreen(viewModel: GameViewModel) {
             }
             Spacer(Modifier.height(6.dp))
 
-            CandlestickChart(
-                candles = viewModel.candles,
+            var showBollinger by remember { mutableStateOf(false) }
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(260.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            )
+            ) {
+                CandlestickChart(
+                    candles = viewModel.candles,
+                    currentPrice = price,
+                    showBollingerBands = showBollinger,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                if (viewModel.isTestUnlockUser()) {
+                    Surface(
+                        color = if (showBollinger) TsAccent else TsSurfaceElevated,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(6.dp)
+                            .clickable { showBollinger = !showBollinger }
+                    ) {
+                        Icon(
+                            Icons.Filled.SsidChart,
+                            contentDescription = "Bollinger Bands",
+                            tint = if (showBollinger) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(6.dp).size(18.dp)
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(8.dp))
 
             // Spot / Futures mode toggle

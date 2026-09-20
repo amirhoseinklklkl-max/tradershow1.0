@@ -113,6 +113,13 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
     var reviewChallengeReadyToClaim by mutableStateOf(false)
         private set
     private var reviewLinkOpenedAt = 0L
+    private var reviewChallengeClaimedDay = ""
+
+    /** The card should keep showing (even once claimed, as "دریافت شد ✓")
+     * only for the rest of the day it was claimed on -- after that it's
+     * cleared from the list entirely, matching how daily challenges reset. */
+    val showReviewChallengeCard: Boolean
+        get() = !reviewChallengeClaimed || reviewChallengeClaimedDay == todayKey()
 
     private var tickerStarted = false
     private var challengeRecord = ChallengeRecord()
@@ -144,8 +151,12 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         // grants starting USD for testing. Not surfaced anywhere in the UI,
         // strings, or docs -- keep it that way.
         private const val TEST_UNLOCK_CODE = "mnbvchxz7890"
-        private const val TEST_UNLOCK_USD = 800.0
+        private const val TEST_UNLOCK_USD = 1000.0
     }
+
+    /** Not surfaced anywhere in the UI/strings -- lets the test account (see
+     * [TEST_UNLOCK_CODE]) unlock the hidden Bollinger Bands indicator toggle. */
+    fun isTestUnlockUser(): Boolean = profile?.firstName?.trim() == TEST_UNLOCK_CODE
 
     fun loadOrCreateProfile(existing: UserProfile?) {
         if (existing != null) {
@@ -164,6 +175,7 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
             checkDailyLifeEvent()
             reviewChallengeClaimed = repository.loadReviewChallengeClaimed()
             reviewLinkOpenedAt = repository.loadReviewLinkOpenedAt()
+            reviewChallengeClaimedDay = repository.loadReviewChallengeClaimedDay()
             resolveOfflineGapAndStartTicking()
         }
     }
@@ -186,6 +198,11 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         loadChallenges()
         refreshAchievementUiState()
         checkDailyLifeEvent()
+        if (firstName.trim() == TEST_UNLOCK_CODE) {
+            // Guaranteed test scenario: skip the normal $5/weekday gating and
+            // immediately surface a problem event in زندگی من for testing.
+            pendingLifeEvent = LifeEventCatalog.all.first { it.kind == LifeEventKind.EXPENSE }
+        }
         resolveOfflineGapAndStartTicking()
     }
 
@@ -214,6 +231,26 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
     }
 
     private fun referencePriceFor(asset: Asset) = asset.startingPriceUsd
+
+    /**
+     * Looks a short distance ahead in the (deterministic, seed-based) price
+     * engine for the currently selected asset and returns the fractional
+     * change between now and then. Because the simulation is a pure
+     * function of time, this is a genuine look at what's about to happen --
+     * used to make the news ticker's mood match the asset's near-future
+     * direction instead of just its past.
+     */
+    fun predictedNearFutureChangeFraction(lookaheadMinutes: Int = 15): Double {
+        val p = profile ?: return 0.0
+        val now = System.currentTimeMillis()
+        val future = now + lookaheadMinutes * PriceEngine.MINUTE_MS
+        val currentPrice = currentPrices[selectedAsset.symbol] ?: return 0.0
+        val futurePrice = PriceEngine.priceAt(
+            selectedAsset, p.randomSeed, future, p.accountCreatedAtMillis, referencePriceFor(selectedAsset)
+        )
+        if (currentPrice <= 0.0) return 0.0
+        return (futurePrice - currentPrice) / currentPrice
+    }
 
     private fun rebuildChartFor(asset: Asset) {
         val p = profile ?: return
@@ -602,7 +639,8 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         wallet = wallet.addToman(REVIEW_CHALLENGE_REWARD_TOMAN)
         repository.saveWallet(wallet)
         reviewChallengeClaimed = true
-        repository.saveReviewChallengeClaimed(true)
+        reviewChallengeClaimedDay = todayKey()
+        repository.saveReviewChallengeClaimed(true, reviewChallengeClaimedDay)
         gainXp(50)
     }
 

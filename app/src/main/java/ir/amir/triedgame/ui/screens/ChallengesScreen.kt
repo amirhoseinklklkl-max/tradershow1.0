@@ -51,7 +51,9 @@ fun ChallengesScreen(viewModel: GameViewModel) {
 
         when (tab) {
             ChallengesTab.DAILY -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { ReviewChallengeCard(viewModel) }
+                if (viewModel.showReviewChallengeCard) {
+                    item { ReviewChallengeCard(viewModel) }
+                }
                 items(viewModel.challenges) { state ->
                     ChallengeCard(state, onClaim = { viewModel.claimChallenge(state.challenge.id) })
                 }
