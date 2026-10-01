@@ -58,6 +58,31 @@ fun AccountScreen(viewModel: GameViewModel) {
                     modifier = Modifier.fillMaxWidth().height(140.dp).padding(12.dp)
                 )
             }
+
+            Spacer(Modifier.height(20.dp))
+            Text("سطح زندگی (${viewModel.lifeLevelLabel})", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            if (viewModel.ownedAssets.isEmpty()) {
+                Text(
+                    "هنوز هیچ دارایی‌ای از «زندگی من» نخریدی",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                // Its own small scroll region so a long list of owned assets
+                // doesn't take over the whole page -- nests fine inside the
+                // screen's outer scroll (inner list scrolls first).
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    viewModel.ownedAssets.forEach { asset ->
+                        OwnedAssetRow(asset, onSell = { viewModel.sellLifeAsset(asset.id) })
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.width(20.dp))
@@ -158,6 +183,25 @@ private fun BalanceCard(label: String, value: String, accent: androidx.compose.u
             Text(label, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(4.dp))
             Text(value, style = MaterialTheme.typography.titleLarge, color = accent, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun OwnedAssetRow(asset: ir.amir.triedgame.model.OwnedLifeAsset, onSell: () -> Unit) {
+    Surface(color = TsSurfaceElevated, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 10.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(asset.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(asset.tier.label, style = MaterialTheme.typography.bodySmall)
+            }
+            Button(onClick = onSell) {
+                Text(String.format(Locale.US, "فروش به %,.0f تومان", asset.sellPriceToman), style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }

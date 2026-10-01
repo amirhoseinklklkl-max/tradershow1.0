@@ -23,6 +23,8 @@ import ir.amir.triedgame.model.LifeEventCatalog
 import ir.amir.triedgame.model.LifeEventKind
 import ir.amir.triedgame.model.LifeStats
 import ir.amir.triedgame.model.NetWorthPoint
+import ir.amir.triedgame.model.OwnedLifeAsset
+import ir.amir.triedgame.model.LifeAssetTier
 import ir.amir.triedgame.model.Position
 import ir.amir.triedgame.model.PositionSide
 import ir.amir.triedgame.model.USD_TO_TOMAN_RATE
@@ -94,6 +96,17 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
 
     var netWorthHistory by mutableStateOf<List<NetWorthPoint>>(emptyList())
         private set
+
+    var ownedAssets by mutableStateOf<List<OwnedLifeAsset>>(emptyList())
+        private set
+
+    /** "سطح زندگی" label, based only on the highest-tier زندگی من asset
+     * currently owned (trading assets/currencies never count here). */
+    val lifeLevelLabel: String
+        get() {
+            val best = ownedAssets.maxByOrNull { it.tier.ordinal } ?: return "تازه‌کار"
+            return best.tier.label
+        }
 
     /** A random life event waiting to be acknowledged by the user (شown as a dismissible card). */
     var pendingLifeEvent by mutableStateOf<LifeEvent?>(null)
@@ -168,6 +181,7 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
             positions = repository.loadPositions()
             tradeHistory = repository.loadClosedTrades()
             netWorthHistory = repository.loadNetWorthHistory()
+            ownedAssets = repository.loadOwnedAssets()
             achievementStats = repository.loadAchievementStats()
             unlockedAchievementIds = repository.loadUnlockedAchievements()
             loadChallenges()
@@ -193,6 +207,7 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         positions = emptyList()
         tradeHistory = emptyList()
         netWorthHistory = emptyList()
+        ownedAssets = emptyList()
         achievementStats = AchievementStats()
         unlockedAchievementIds = emptySet()
         loadChallenges()
@@ -532,7 +547,14 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
 
     // --- Life / زندگی من ---
 
-    fun spendTomanInLife(amount: Double, xpReward: Int, isHungerItem: Boolean, applyEffect: (LifeStats) -> LifeStats): Boolean {
+    fun spendTomanInLife(
+        amount: Double,
+        xpReward: Int,
+        isHungerItem: Boolean,
+        ownableTitle: String? = null,
+        ownableTier: LifeAssetTier? = null,
+        applyEffect: (LifeStats) -> LifeStats
+    ): Boolean {
         val newWallet = wallet.spendToman(amount) ?: return false
         wallet = newWallet
         repository.saveWallet(wallet)
@@ -544,6 +566,18 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         repository.saveLifeStats(lifeStats)
         repository.saveLifeStatsPrecise(preciseHealth, preciseHunger, preciseEnergy)
         gainXp(xpReward)
+
+        if (ownableTier != null && ownableTitle != null) {
+            val asset = OwnedLifeAsset(
+                id = UUID.randomUUID().toString(),
+                title = ownableTitle,
+                purchasePriceToman = amount,
+                tier = ownableTier,
+                purchasedAtMillis = System.currentTimeMillis()
+            )
+            ownedAssets = ownedAssets + asset
+            repository.saveOwnedAssets(ownedAssets)
+        }
 
         if (isHungerItem) {
             challengeRecord = challengeRecord.copy(hungerItemBought = true)
@@ -614,6 +648,16 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
         repository.saveWallet(wallet)
         pendingLifeEvent = null
         return true
+    }
+
+    /** Sells an owned زندگی من asset (car, motorcycle, watch, ...) for half
+     * its original purchase price, crediting the wallet in Toman. */
+    fun sellLifeAsset(assetId: String) {
+        val asset = ownedAssets.find { it.id == assetId } ?: return
+        ownedAssets = ownedAssets.filterNot { it.id == assetId }
+        repository.saveOwnedAssets(ownedAssets)
+        wallet = wallet.addToman(asset.sellPriceToman)
+        repository.saveWallet(wallet)
     }
 
     // --- One-time "rate us 5 stars on Myket" challenge ---

@@ -131,6 +131,29 @@ object AchievementCatalog {
     )
 }
 
+/** Price tier for ownable/sellable زندگی من assets (car, motorcycle, watch,
+ * apartment, boat, ...) -- used both for the sell price and for the
+ * "سطح زندگی" (life level) label shown in حساب کاربری. Deliberately does
+ * NOT include trading assets/currencies -- only زندگی من purchases. */
+enum class LifeAssetTier(val label: String) {
+    LOW("سطح پایین"),
+    MEDIUM("سطح متوسط"),
+    HIGH("سطح بالا"),
+    LUXURY("لاکچری")
+}
+
+/** One tangible زندگی من asset the user currently owns (a car, a watch, an
+ * apartment, ...). Sellable for half its original purchase price. */
+data class OwnedLifeAsset(
+    val id: String,
+    val title: String,
+    val purchasePriceToman: Double,
+    val tier: LifeAssetTier,
+    val purchasedAtMillis: Long
+) {
+    val sellPriceToman: Double get() = purchasePriceToman / 2.0
+}
+
 data class LifeStats(
     val health: Int = 100,
     val hunger: Int = 100,

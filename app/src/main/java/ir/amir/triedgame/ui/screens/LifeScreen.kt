@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ir.amir.triedgame.model.LifeAssetTier
 import ir.amir.triedgame.model.LifeStats
 import ir.amir.triedgame.ui.GameViewModel
 import ir.amir.triedgame.ui.theme.TsAccent
@@ -43,7 +44,12 @@ private data class LifeItem(
     val isHungerItem: Boolean,
     val group: LifeItemGroup,
     val effect: (LifeStats) -> LifeStats,
-    val description: String
+    val description: String,
+    /** Only set for tangible ASSET-group items the user keeps and can later
+     * sell (car, motorcycle, watch, home, boat, ...). Travel items are
+     * ASSET-group too but stay null here -- they're a one-off experience,
+     * not something to own/resell, so they don't feed into "سطح زندگی". */
+    val tier: LifeAssetTier? = null
 )
 
 private val lifeItems = listOf(
@@ -63,16 +69,18 @@ private val lifeItems = listOf(
     LifeItem("باشگاه ورزشی", 200_000.0, 18, false, LifeItemGroup.HEALTH, { it.copy(health = it.health + 20, energy = it.energy - 10) }, "سلامتی +۲۰، انرژی -۱۰"),
     LifeItem("سفر داخلی", 3_000_000.0, 100, false, LifeItemGroup.ASSET, { it }, "افزایش تجربه + تزئینی"),
     LifeItem("سفر خارجی", 15_000_000.0, 400, false, LifeItemGroup.ASSET, { it }, "افزایش تجربه‌ی زیاد + تزئینی"),
-    LifeItem("موتورسیکلت", 60_000_000.0, 200, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی"),
-    LifeItem("ماشین اقتصادی", 200_000_000.0, 500, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی زیاد"),
-    LifeItem("ماشین لوکس", 1_500_000_000.0, 2000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی خیلی زیاد"),
-    LifeItem("آپارتمان کوچک", 500_000_000.0, 1000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی زیاد"),
+    LifeItem("دوچرخه", 8_000_000.0, 60, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی", LifeAssetTier.LOW),
+    LifeItem("موتورسیکلت", 60_000_000.0, 200, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی", LifeAssetTier.LOW),
+    LifeItem("ساعت هوشمند", 90_000_000.0, 300, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی", LifeAssetTier.LOW),
+    LifeItem("ماشین اقتصادی", 200_000_000.0, 500, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی زیاد", LifeAssetTier.MEDIUM),
+    LifeItem("آپارتمان کوچک", 500_000_000.0, 1000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی زیاد", LifeAssetTier.HIGH),
+    LifeItem("ویلا", 900_000_000.0, 1800, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی زیاد", LifeAssetTier.HIGH),
+    LifeItem("ماشین لوکس", 1_500_000_000.0, 2000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی خیلی زیاد", LifeAssetTier.LUXURY),
+    LifeItem("قایق تفریحی", 3_000_000_000.0, 5000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی بسیار زیاد", LifeAssetTier.LUXURY),
     LifeItem("آب‌معدنی", 10_000.0, 2, true, LifeItemGroup.FOOD, { it.copy(hunger = it.hunger + 5, energy = it.energy + 5) }, "گرسنگی +۵، انرژی +۵"),
     LifeItem("اسموتی پروتئینی", 70_000.0, 9, true, LifeItemGroup.FOOD, { it.copy(hunger = it.hunger + 25, health = it.health + 5) }, "گرسنگی +۲۵، سلامتی +۵"),
     LifeItem("ماساژ", 180_000.0, 15, false, LifeItemGroup.HEALTH, { it.copy(energy = it.energy + 20, health = it.health + 10) }, "انرژی +۲۰، سلامتی +۱۰"),
-    LifeItem("چکاپ کامل پزشکی", 600_000.0, 35, false, LifeItemGroup.HEALTH, { it.copy(health = 100) }, "سلامتی پر"),
-    LifeItem("ساعت هوشمند", 90_000_000.0, 300, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی"),
-    LifeItem("قایق تفریحی", 3_000_000_000.0, 5000, false, LifeItemGroup.ASSET, { it }, "دارایی تزئینی، تجربه‌ی بسیار زیاد")
+    LifeItem("چکاپ کامل پزشکی", 600_000.0, 35, false, LifeItemGroup.HEALTH, { it.copy(health = 100) }, "سلامتی پر")
 )
 
 @Composable
@@ -142,7 +150,11 @@ fun LifeScreen(viewModel: GameViewModel) {
                         Spacer(Modifier.height(6.dp))
                         Button(
                             onClick = {
-                                val ok = viewModel.spendTomanInLife(item.priceToman, item.xpReward, item.isHungerItem, item.effect)
+                                val ok = viewModel.spendTomanInLife(
+                                    item.priceToman, item.xpReward, item.isHungerItem,
+                                    ownableTitle = item.title, ownableTier = item.tier,
+                                    applyEffect = item.effect
+                                )
                                 message = if (ok) null else "موجودی تومانی کافی نیست"
                             },
                             modifier = Modifier.fillMaxWidth(),

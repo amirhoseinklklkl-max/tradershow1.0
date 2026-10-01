@@ -8,6 +8,8 @@ import ir.amir.triedgame.model.ClosedTrade
 import ir.amir.triedgame.model.CloseReason
 import ir.amir.triedgame.model.LifeStats
 import ir.amir.triedgame.model.NetWorthPoint
+import ir.amir.triedgame.model.OwnedLifeAsset
+import ir.amir.triedgame.model.LifeAssetTier
 import ir.amir.triedgame.model.Position
 import ir.amir.triedgame.model.PositionSide
 import ir.amir.triedgame.model.UserProfile
@@ -304,6 +306,37 @@ class GameRepository(context: Context) {
         }
     }
 
+    // --- Owned زندگی من assets (سطح زندگی) ---
+
+    fun saveOwnedAssets(assets: List<OwnedLifeAsset>) {
+        val array = JSONArray()
+        assets.forEach { a ->
+            val obj = JSONObject()
+            obj.put("id", a.id)
+            obj.put("title", a.title)
+            obj.put("price", a.purchasePriceToman)
+            obj.put("tier", a.tier.name)
+            obj.put("purchasedAt", a.purchasedAtMillis)
+            array.put(obj)
+        }
+        prefs.edit().putString(KEY_OWNED_ASSETS, array.toString()).apply()
+    }
+
+    fun loadOwnedAssets(): List<OwnedLifeAsset> {
+        val raw = prefs.getString(KEY_OWNED_ASSETS, null) ?: return emptyList()
+        val array = JSONArray(raw)
+        return (0 until array.length()).map { i ->
+            val obj = array.getJSONObject(i)
+            OwnedLifeAsset(
+                id = obj.getString("id"),
+                title = obj.getString("title"),
+                purchasePriceToman = obj.getDouble("price"),
+                tier = LifeAssetTier.valueOf(obj.getString("tier")),
+                purchasedAtMillis = obj.getLong("purchasedAt")
+            )
+        }
+    }
+
     // --- Daily random life event ---
 
     fun loadLastLifeEventDay(): String = prefs.getString(KEY_LIFE_EVENT_DAY, "") ?: ""
@@ -373,6 +406,7 @@ class GameRepository(context: Context) {
         private const val KEY_ACH_UNLOCKED = "ach_unlocked"
         private const val KEY_NET_WORTH_HISTORY = "net_worth_history"
         private const val KEY_LIFE_EVENT_DAY = "life_event_day"
+        private const val KEY_OWNED_ASSETS = "owned_life_assets"
         private const val KEY_LIFE_EVENT_ELIGIBLE = "life_event_eligible"
         private const val KEY_REVIEW_CLAIMED = "review_challenge_claimed"
         private const val KEY_REVIEW_CLAIMED_DAY = "review_challenge_claimed_day"
